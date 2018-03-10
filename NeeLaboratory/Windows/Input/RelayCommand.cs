@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 using System.Windows.Input;
 
 namespace NeeLaboratory.Windows.Input
@@ -18,13 +19,14 @@ namespace NeeLaboratory.Windows.Input
     /// </summary>
     public class RelayCommand : ICommand
     {
+        #region Fields
+
         private readonly Action _execute;
         private readonly Func<bool> _canExecute;
 
-        /// <summary>
-        /// RaiseCanExecuteChanged が呼び出されたときに生成されます。
-        /// </summary>
-        public event EventHandler CanExecuteChanged;
+        #endregion
+
+        #region Constructors
 
         /// <summary>
         /// 常に実行可能な新しいコマンドを作成します。
@@ -47,6 +49,19 @@ namespace NeeLaboratory.Windows.Input
             _execute = execute;
             _canExecute = canExecute;
         }
+
+        #endregion
+
+        #region Events
+
+        /// <summary>
+        /// RaiseCanExecuteChanged が呼び出されたときに生成されます。
+        /// </summary>
+        public event EventHandler CanExecuteChanged;
+
+        #endregion
+
+        #region Methods
 
         /// <summary>
         /// 現在の状態でこの <see cref="RelayCommand"/> が実行できるかどうかを判定します。
@@ -80,6 +95,8 @@ namespace NeeLaboratory.Windows.Input
         {
             CanExecuteChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        #endregion
     }
 
 
@@ -89,14 +106,12 @@ namespace NeeLaboratory.Windows.Input
     /// <typeparam name="T"></typeparam>
     public class RelayCommand<T> : ICommand
     {
+        #region Fields
         private readonly Action<T> _execute;
         private readonly Func<T, bool> _canExecute;
+        #endregion
 
-        /// <summary>
-        /// RaiseCanExecuteChanged が呼び出されたときに生成されます。
-        /// </summary>
-        public event EventHandler CanExecuteChanged;
-
+        #region Constructoes
         /// <summary>
         /// 常に実行可能な新しいコマンドを作成します。
         /// </summary>
@@ -118,6 +133,17 @@ namespace NeeLaboratory.Windows.Input
             _execute = execute;
             _canExecute = canExecute;
         }
+
+        #endregion
+
+        #region Events
+        /// <summary>
+        /// RaiseCanExecuteChanged が呼び出されたときに生成されます。
+        /// </summary>
+        public event EventHandler CanExecuteChanged;
+        #endregion
+
+        #region Methods
 
         /// <summary>
         /// 現在の状態でこの <see cref="RelayCommand"/> が実行できるかどうかを判定します。
@@ -151,5 +177,7 @@ namespace NeeLaboratory.Windows.Input
         {
             CanExecuteChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        #endregion
     }
 }
