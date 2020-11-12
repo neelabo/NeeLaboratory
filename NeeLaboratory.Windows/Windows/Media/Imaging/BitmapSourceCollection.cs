@@ -41,12 +41,12 @@ namespace NeeLaboratory.Windows.Media.Imaging
             Frames.Sort((x, y) => x.PixelWidth - y.PixelWidth);
         }
 
-        public BitmapSource GetBitmapSource()
+        public BitmapSource? GetBitmapSource()
         {
             return Frames.LastOrDefault();
         }
 
-        public BitmapSource GetBitmapSource(double width)
+        public BitmapSource? GetBitmapSource(double width)
         {
             return Frames.Find(e => width <= e.PixelWidth) ?? Frames.LastOrDefault();
 #if false
