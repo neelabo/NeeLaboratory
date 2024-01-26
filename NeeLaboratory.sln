@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.8.34511.84
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeeLaboratory", "NeeLaboratory\NeeLaboratory.csproj", "{891580EC-6126-4756-A971-CDF18088F5F0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeeLaboratory.Runtime", "NeeLaboratory.Runtime\NeeLaboratory.Runtime.csproj", "{891580EC-6126-4756-A971-CDF18088F5F0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NeeLaboratory.Windows", "NeeLaboratory.Windows\NeeLaboratory.Windows.csproj", "{3D8F4E2B-A456-4788-9717-AFAA377B7DA4}"
 EndProject

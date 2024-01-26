@@ -5,10 +5,11 @@
     <Nullable>enable</Nullable>
     <Authors>NeeLaboratory</Authors>
     <Copyright>Copyright © 2016-2023 Ito Mitsuhiro (nee)</Copyright>
+    <RootNamespace>NeeLaboratory</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NeeLaboratory.SourceGenerator\NeeLaboratory.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false"/>
+    <ProjectReference Include="..\NeeLaboratory.SourceGenerator\NeeLaboratory.SourceGenerator.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>

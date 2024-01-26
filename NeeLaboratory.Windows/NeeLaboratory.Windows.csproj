@@ -7,7 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\NeeLaboratory\NeeLaboratory.csproj" />
+    <ProjectReference Include="..\NeeLaboratory.Runtime\NeeLaboratory.Runtime.csproj" />
   </ItemGroup>
 
 </Project>
