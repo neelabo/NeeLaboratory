@@ -7,16 +7,11 @@ namespace NeeLaboratory.Threading.Jobs
     /// </summary>
     public class JobException : Exception
     {
-        #region Fields
-
         /// <summary>
         /// 例外が発生したJOB
         /// </summary>
-        private IJob _job;
+        private readonly IJob _job;
 
-        #endregion
-
-        #region Constructos
 
         /// <summary>
         /// コンストラクタ
@@ -30,15 +25,10 @@ namespace NeeLaboratory.Threading.Jobs
             _job = job;
         }
 
-        #endregion
-
-        #region Properties
 
         /// <summary>
         /// 例外が発生したJOB
         /// </summary>
         public IJob Job => _job;
-
-        #endregion
     }
 }

@@ -15,7 +15,7 @@ namespace NeeLaboratory.IO
         {
             var path = source;
 
-            var directory = Path.GetDirectoryName(path);
+            var directory = Path.GetDirectoryName(path) ?? "";
             var filename = Path.GetFileNameWithoutExtension(path);
             var extension = Path.GetExtension(path);
             int count = 1;

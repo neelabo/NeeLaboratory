@@ -1,80 +1,122 @@
 ﻿using NeeLaboratory.Diagnostics;
+using NeeLaboratory.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
+using NeeLaboratory.Generators;
 
 namespace NeeLaboratory.Threading.Jobs
 {
     /// <summary>
     /// SingleJobエンジン
     /// </summary>
-    public class SingleJobEngine : IEngine, IDisposable
+    public partial class SingleJobEngine : IEngine, IDisposable
     {
-        #region Fields
-
         /// <summary>
         /// ワーカータスクのキャンセルトークン
         /// </summary>
-        private CancellationTokenSource _engineCancellationTokenSource;
+        private readonly CancellationTokenSource _engineCancellationTokenSource;
+
+        /// <summary>
+        /// エンジンON/OFF
+        /// </summary>
+        private readonly ManualResetEventSlim _activeEvent = new(false);
 
         /// <summary>
         /// 予約Job存在通知
         /// </summary>
-        private ManualResetEventSlim _readyQueue = new ManualResetEventSlim(false);
+        private readonly ManualResetEventSlim _readyEvent = new(false);
 
         /// <summary>
         /// 予約Jobリスト
         /// </summary>
-        protected Queue<IJob> _queue = new Queue<IJob>();
+        private Queue<IJob> _queue = new();
 
         /// <summary>
         /// 実行中Job
         /// </summary>
-        protected volatile IJob _currentJob;
-
-        /// <summary>
-        /// エンジン動作中
-        /// </summary>
-        private bool _isEngineActive;
+        private volatile IJob? _currentJob;
 
         /// <summary>
         /// 排他処理用オブジェクト
         /// </summary>
-        private object _lock = new object();
+        private readonly object _lock = new();
+
+        /// <summary>
+        /// ワーカースレッド
+        /// </summary>
+        private readonly Thread? _thread;
 
         /// <summary>
         /// 開発用：ログ
         /// </summary>
-        private Log _log;
+        /// TODO: LOGのあつかいもっとスマートにできそう
+        private readonly Log? _log;
 
-        #endregion
 
-        #region Constructors
 
-        public SingleJobEngine()
+        public SingleJobEngine(string name, bool isLogging = true)
         {
+            _log = isLogging ? new Log(name, 0) : null;
+            _log?.Trace($"start...");
+
+            _engineCancellationTokenSource = new CancellationTokenSource();
+
+            _thread = new Thread(() =>
+            {
+                try
+                {
+                    Worker(_engineCancellationTokenSource.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    _log?.Trace($"canceled.");
+                }
+                catch (Exception ex)
+                {
+                    _log?.Trace(TraceEventType.Critical, $"excepted: {ex.Message}");
+                    var args = new JobErrorEventArgs(ex, null);
+                    JobEngineError?.Invoke(this, args);
+                    if (!args.Handled)
+                    {
+                        throw;
+                    }
+                }
+                finally
+                {
+                    _log?.Trace($"stopped.");
+                    ////Debug.WriteLine($"{this}: worker thread terminated.");
+                }
+            });
+
+            _thread.IsBackground = true;
+            _thread.Name = name;
+            _thread.Start();
         }
 
-        #endregion
-
-        #region Events
 
         /// <summary>
         /// JOBエラー発生時のイベント
         /// </summary>
-        public event EventHandler<JobErrorEventArgs> JobError;
+        [Subscribable]
+        public event EventHandler<JobErrorEventArgs>? JobError;
 
         /// <summary>
         /// 例外によってJobEngineが停止した時に発生するイベント
         /// </summary>
-        public event EventHandler<ErrorEventArgs> JobEngineError;
+        [Subscribable]
+        public event EventHandler<JobErrorEventArgs>? JobEngineError;
 
-        #endregion
+        /// <summary>
+        /// IsBusyプロパティ変更EVENT
+        /// </summary>
+        [Subscribable]
+        public event EventHandler<JobIsBusyChangedEventArgs>? IsBusyChanged;
 
-        #region Properties
 
         /// <summary>
         /// 現在のJob数
@@ -85,51 +127,55 @@ namespace NeeLaboratory.Threading.Jobs
         }
 
         /// <summary>
-        /// 開発用：ログ
+        /// 活動中
         /// </summary>
-        public Log Log
-        {
-            get { return _log; }
-            set { _log = value; }
-        }
-
-        #endregion
-
-        #region Methods
+        public bool IsBusy => Count > 0;
 
         /// <summary>
-        /// 全てのJobを走査
+        /// エンジン自体のキャンセルトークン
         /// </summary>
-        public IEnumerable<IJob> AllJobs()
+        public CancellationToken CancellationToken => _engineCancellationTokenSource.Token;
+
+
+        /// <summary>
+        /// 実行中を含む全てのJobを取得
+        /// </summary>
+        public List<IJob> AllJobs()
         {
-            if (_currentJob != null)
+            var jobs = new List<IJob>();
+
+            lock (_lock)
             {
-                yield return _currentJob;
+                var job = _currentJob;
+                if (job != null)
+                {
+                    jobs.Add(job);
+                }
+                jobs.AddRange(_queue);
             }
-            foreach (var job in _queue)
-            {
-                yield return job;
-            }
+
+            return jobs;
         }
+
 
         /// <summary>
         /// Job登録
         /// </summary>
-        public virtual void Enqueue(IJob job)
+        public void Enqueue(IJob job)
         {
-            if (!_isEngineActive)
-            {
-                _log?.Trace(TraceEventType.Warning, $"enqueue when engine not actived,");
-            }
+            Debug.Assert(job is not null);
+            if (job is null) return;
+
+            ThrowIfDisposed();
 
             lock (_lock)
             {
-                if (OnEnqueueing(job))
+                _queue = Enqueue(job, _queue);
+                if (_queue.Count > 0)
                 {
                     _log?.Trace($"Job entry: {job}");
-                    _queue.Enqueue(job);
-                    OnEnqueued(job);
-                    _readyQueue.Set();
+                    IsBusyChanged?.Invoke(this, new JobIsBusyChangedEventArgs(Count)); // lock中にイベントを呼ぶのは...?
+                    _readyEvent.Set();
                 }
                 else
                 {
@@ -139,12 +185,77 @@ namespace NeeLaboratory.Threading.Jobs
         }
 
         /// <summary>
+        /// Job登録
+        /// </summary>
+        protected virtual Queue<IJob> Enqueue(IJob job, Queue<IJob> queue)
+        {
+            Debug.Assert(job is not null);
+            Debug.Assert(queue is not null);
+
+            queue.Enqueue(job);
+            return queue;
+        }
+
+
+        /// <summary>
+        /// ワーカータスク
+        /// </summary>
+        private void Worker(CancellationToken token)
+        {
+            while (true)
+            {
+                Debug.Assert(_currentJob is null);
+                token.ThrowIfCancellationRequested();
+                
+                _readyEvent.Wait(token);
+                token.ThrowIfCancellationRequested();
+
+                _activeEvent.Wait(token);
+                token.ThrowIfCancellationRequested();
+
+                lock (_lock)
+                {
+                    if (_queue.Count <= 0)
+                    {
+                        _readyEvent.Reset();
+                        continue;
+                    }
+                    _currentJob = _queue.Dequeue();
+                }
+
+                try
+                {
+                    _log?.Trace($"Job execute: {_currentJob}");
+                    _currentJob?.ExecuteAsync().Wait(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    _log?.Trace(TraceEventType.Information, $"Job canceled: {_currentJob}");
+                }
+                catch (Exception ex)
+                {
+                    _log?.Trace(TraceEventType.Error, $"Job excepted: {_currentJob}");
+                    HandleJobException(ex, _currentJob);
+                }
+
+                lock (_lock)
+                {
+                    _currentJob?.Dispose();
+                    _currentJob = null;
+                }
+
+                IsBusyChanged?.Invoke(this, new JobIsBusyChangedEventArgs(Count));
+            }
+        }
+
+        /// <summary>
         /// JOBで発生した例外の処理
         /// </summary>
-        /// <param name="exception"></param>
-        /// <param name="job"></param>
         private void HandleJobException(Exception exception, IJob job)
         {
+            Debug.Assert(exception is not null);
+            Debug.Assert(job is not null);
+
             var args = new JobErrorEventArgs(exception, job);
             JobError?.Invoke(this, args);
             if (!args.Handled)
@@ -153,122 +264,25 @@ namespace NeeLaboratory.Threading.Jobs
             }
         }
 
-        /// <summary>
-        /// Queue登録前の処理
-        /// </summary>
-        /// <param name="job"></param>
-        /// <returns>falseの場合、登録しない</returns>
-        protected virtual bool OnEnqueueing(IJob job)
-        {
-            return true;
-        }
-
-        /// <summary>
-        /// Queue登録後の処理
-        /// </summary>
-        /// <param name="job"></param>
-        protected virtual void OnEnqueued(IJob job)
-        {
-        }
-
-        /// <summary>
-        /// ワーカータスク
-        /// </summary>
-        private async Task WorkerAsync(CancellationToken token)
-        {
-            try
-            {
-                while (!token.IsCancellationRequested)
-                {
-                    _readyQueue.Wait(token);
-
-                    while (!token.IsCancellationRequested)
-                    {
-                        lock (_lock)
-                        {
-                            if (_queue.Count <= 0)
-                            {
-                                _currentJob = null;
-                                _readyQueue.Reset();
-                                break;
-                            }
-                            _currentJob = _queue.Dequeue();
-                        }
-
-                        try
-                        {
-                            _log?.Trace($"Job execute: {_currentJob}");
-                            await _currentJob?.ExecuteAsync();
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            _log?.Trace(TraceEventType.Information, $"Job canceled: {_currentJob}");
-                        }
-                        catch (Exception ex)
-                        {
-                            _log?.Trace(TraceEventType.Error, $"Job excepted: {_currentJob}");
-                            HandleJobException(ex, _currentJob);
-                        }
-
-                        _currentJob = null;
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            finally
-            {
-                _currentJob = null;
-            }
-        }
-
-        #endregion
-
         #region IEngine Support
-
-        /// <summary>
-        /// エンジン始動
-        /// </summary>
-        public virtual void StartEngine()
+        public void StartEngine()
         {
-            if (_isEngineActive) return;
-
-            _log?.Trace($"start...");
-            _isEngineActive = true;
-            _engineCancellationTokenSource = new CancellationTokenSource();
-
-            Task.Run(async () =>
-            {
-                try
-                {
-                    await WorkerAsync(_engineCancellationTokenSource.Token);
-                }
-                catch (Exception ex)
-                {
-                    _log?.Trace(TraceEventType.Critical, $"excepted: {ex.Message}");
-                    JobEngineError?.Invoke(this, new ErrorEventArgs(ex));
-                }
-                finally
-                {
-                    _isEngineActive = false;
-                    _log?.Trace($"stopped.");
-                }
-            });
+            _activeEvent.Set();
         }
 
-        /// <summary>
-        /// エンジン停止
-        /// </summary>
         public virtual void StopEngine()
         {
-            _engineCancellationTokenSource?.Cancel();
+            _activeEvent.Reset();
         }
-
-        #endregion
+        #endregion IEngine Support
 
         #region IDisposable Support
         private bool _disposedValue = false;
+
+        protected void ThrowIfDisposed()
+        {
+            if (_disposedValue) throw new ObjectDisposedException(GetType().FullName);
+        }
 
         protected virtual void Dispose(bool disposing)
         {
@@ -276,7 +290,17 @@ namespace NeeLaboratory.Threading.Jobs
             {
                 if (disposing)
                 {
-                    StopEngine();
+                    _engineCancellationTokenSource.Cancel();
+                    _engineCancellationTokenSource.Dispose();
+
+                    _activeEvent.Dispose();
+                    _readyEvent.Dispose();
+
+                    foreach (var job in AllJobs())
+                    {
+                        job.Dispose();
+                    }
+
                     _log?.Dispose();
                 }
 
@@ -287,7 +311,22 @@ namespace NeeLaboratory.Threading.Jobs
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
         #endregion
+    }
+
+    public class JobIsBusyChangedEventArgs : EventArgs
+    {
+        public JobIsBusyChangedEventArgs(int count)
+        {
+            Debug.Assert(count >= 0);
+
+            Count = count;
+        }
+
+        public int Count { get; }
+        public bool IsBusy => Count > 0;
+
     }
 }
