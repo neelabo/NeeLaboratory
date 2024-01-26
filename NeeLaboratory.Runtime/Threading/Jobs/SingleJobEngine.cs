@@ -1,5 +1,4 @@
 ﻿using NeeLaboratory.Diagnostics;
-using NeeLaboratory.ComponentModel;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -206,7 +205,7 @@ namespace NeeLaboratory.Threading.Jobs
             {
                 Debug.Assert(_currentJob is null);
                 token.ThrowIfCancellationRequested();
-                
+
                 _readyEvent.Wait(token);
                 token.ThrowIfCancellationRequested();
 
@@ -290,22 +289,28 @@ namespace NeeLaboratory.Threading.Jobs
             {
                 if (disposing)
                 {
-                    _engineCancellationTokenSource.Cancel();
-                    _engineCancellationTokenSource.Dispose();
-
-                    _activeEvent.Dispose();
-                    _readyEvent.Dispose();
-
-                    foreach (var job in AllJobs())
-                    {
-                        job.Dispose();
-                    }
-
-                    _log?.Dispose();
                 }
+
+                _engineCancellationTokenSource.Cancel();
+                _engineCancellationTokenSource.Dispose();
+
+                _activeEvent.Dispose();
+                _readyEvent.Dispose();
+
+                foreach (var job in AllJobs())
+                {
+                    job.Dispose();
+                }
+
+                _log?.Dispose();
 
                 _disposedValue = true;
             }
+        }
+
+        ~SingleJobEngine()
+        {
+            Dispose(disposing: false);
         }
 
         public void Dispose()
@@ -313,6 +318,7 @@ namespace NeeLaboratory.Threading.Jobs
             Dispose(true);
             GC.SuppressFinalize(this);
         }
+
         #endregion
     }
 
