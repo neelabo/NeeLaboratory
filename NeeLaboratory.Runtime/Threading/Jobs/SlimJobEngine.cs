@@ -94,7 +94,7 @@ namespace NeeLaboratory.Threading.Jobs
         }
 
 
-        private void Enqueue(SlimJob job)
+        protected void Enqueue(SlimJob job)
         {
             lock (_lock)
             {
