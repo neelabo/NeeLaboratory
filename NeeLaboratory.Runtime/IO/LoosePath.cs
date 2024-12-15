@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace NeeLaboratory.IO
 {
@@ -14,6 +13,7 @@ namespace NeeLaboratory.IO
     public static class LoosePath
     {
         public static readonly char[] Separator = new char[] { '\\', '/' };
+        public static readonly char DefaultSeparator = '\\';
 
         public static readonly char[] AsciiSpaces = new char[] {
             '\u0009',  // CHARACTER TABULATION
@@ -62,7 +62,24 @@ namespace NeeLaboratory.IO
         {
             if (string.IsNullOrEmpty(s)) return "";
 
-            return s.Split(Separator, StringSplitOptions.RemoveEmptyEntries).Last();
+            s = NormalizeSeparator(s);
+            var index = s.Length;
+            while (index > 0 && s[index - 1] == DefaultSeparator)
+            {
+                index--;
+            }
+            var end = index;
+            while (index > 0 && s[index - 1] != DefaultSeparator)
+            {
+                index--;
+            }
+            var head = index;
+            while (head > 0 && s[head - 1] == DefaultSeparator)
+            {
+                head--;
+            }
+
+            return head == 0 ? s[..end] : s[index..end];
         }
 
         // place部をディレクトリーとみなしたファイル名取得
@@ -83,18 +100,30 @@ namespace NeeLaboratory.IO
             return parts.First();
         }
 
-        public static string GetDirectoryName(string s)
+        public static string GetDirectoryName(string s, bool fixRootDirectory = true)
         {
             if (string.IsNullOrEmpty(s)) return "";
 
-            var parts = s.Split(Separator, StringSplitOptions.RemoveEmptyEntries).ToList();
-            if (parts.Count <= 1) return "";
+            s = NormalizeSeparator(s);
+            var index = s.Length;
+            while (index > 0 && s[index - 1] == DefaultSeparator)
+            {
+                index--;
+            }
+            while (index > 0 && s[index - 1] != DefaultSeparator)
+            {
+                index--;
+            }
+            while (index > 0 && s[index - 1] == DefaultSeparator)
+            {
+                index--;
+            }
 
-            parts.RemoveAt(parts.Count - 1);
-            var path = GetHeadSeparators(s) + string.Join("\\", parts);
-            if (parts.Count == 1 && path.Last() == ':') path += "\\";
+            if (index < 0) return "";
 
-            return path;
+            var answer = s[0..index];
+            if (fixRootDirectory && answer.Length > 0 && answer.Last() == ':') answer += DefaultSeparator;
+            return answer;
         }
 
         public static string GetExtension(string s)
