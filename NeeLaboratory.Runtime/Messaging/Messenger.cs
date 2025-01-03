@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace NeeLaboratory.RealtimeSearch
+namespace NeeLaboratory.Messaging
+
 {
     public class Messenger
     {

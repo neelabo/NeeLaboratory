@@ -4,6 +4,7 @@
     <TargetFramework>net9.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <Nullable>enable</Nullable>
+    <RootNamespace>NeeLaboratory</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

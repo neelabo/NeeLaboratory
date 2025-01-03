@@ -3,8 +3,6 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <Authors>NeeLaboratory</Authors>
-    <Copyright>Copyright © 2016-2023 Ito Mitsuhiro (nee)</Copyright>
     <RootNamespace>NeeLaboratory</RootNamespace>
   </PropertyGroup>
 
