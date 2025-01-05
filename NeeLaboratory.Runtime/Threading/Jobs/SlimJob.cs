@@ -13,7 +13,7 @@ namespace NeeLaboratory.Threading.Jobs
         private SlimJobStates _state;
         private Exception? _exception;
         private object? _result;
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
 
         public SlimJob(Delegate callback, CancellationToken cancellationToken)
         {

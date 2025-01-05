@@ -43,7 +43,7 @@ namespace NeeLaboratory.Threading.Jobs
         /// <summary>
         /// 排他処理用オブジェクト
         /// </summary>
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
 
         /// <summary>
         /// ワーカースレッド

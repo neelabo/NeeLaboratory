@@ -241,7 +241,7 @@ namespace NeeLaboratory.Windows.IO
         }
 
 
-        private static object _lock = new object();
+        private readonly static Lock _lock = new();
 
         private static string _directoryTypeName = "*\\";
 

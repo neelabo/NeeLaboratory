@@ -17,7 +17,7 @@ namespace NeeLaboratory.Threading.Jobs
         record DelayUnit(SlimJob Job, int Timestamp);
 
         private readonly Timer _timer;
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private List<DelayUnit> _items = new();
         private bool _disposedValue = false;
 

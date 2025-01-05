@@ -11,7 +11,7 @@ namespace NeeLaboratory.Threading.Jobs
 {
     public class SlimJobThreadEngine : IDisposable
     {
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
         private readonly Thread _thread;
         private readonly Queue<SlimJob> _queue = new();
         private bool _disposedValue;
